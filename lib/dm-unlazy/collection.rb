@@ -30,13 +30,19 @@ class Collection
 	end
 
 	def method_missing (id, *args, &block)
+		collection = @collection
+
 		if (Array.instance_method(id) rescue false)
 			reload unless @resources
 
-			return @resources.__send__ id, *args, &block
+			if @resources.is_a?(Array)
+				return @resources.__send__ id, *args, &block
+			end
+
+			collection = @resources
 		end
 
-		result = @collection.__send__ id, *args, &block
+		result = collection.__send__ id, *args, &block
 
 		if result.is_a?(DataMapper::Collection)
 			Collection.new(result)
@@ -54,17 +60,22 @@ class Collection
 	end
 
 	def reload
-		adapter   = repository.adapter
-		query     = @collection.all(:fields => @fields || model.properties.map(&:field)).query
-		statement = adapter.send(:select_statement, query).flatten(1)
+		adapter    = repository.adapter
+		collection = @collection.all(:fields => @fields || model.properties.map(&:field))
 
-		@resources = adapter.select(*statement).map {|data|
-			if data.is_a?(Struct)
-				Unlazy::Model.new(model, data)
-			else
-				Unlazy::Model.new(model, Struct.new(@fields.first).new(data))
-			end
-		}
+		if adapter.respond_to? :select
+			statement = adapter.send(:select_statement, collection.query).flatten(1)
+
+			@resources = adapter.select(*statement).map {|data|
+				if data.is_a?(Struct)
+					Unlazy::Model.new(model, data)
+				else
+					Unlazy::Model.new(model, Struct.new(@fields.first).new(data))
+				end
+			}
+		else
+			@resources = collection
+		end
 
 		self
 	end
