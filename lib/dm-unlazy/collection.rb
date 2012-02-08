@@ -39,24 +39,23 @@ class Collection
 		result = @collection.__send__ id, *args, &block
 
 		if result.is_a?(DataMapper::Collection)
-			@collection = result
-
-			self
+			Collection.new(result)
 		else
 			result
 		end
 	end
 
 	def fields (*fields)
-		@fields = fields.flatten
+		@fields = fields.flatten.map(&:to_sym)
 		@fields.push *model.key.entries.map(&:name)
+		@fields.uniq!
 
 		self
 	end
 
 	def reload
 		adapter = repository.adapter
-		query   = @collection.all(:fields => (@fields || model.properties.map(&:field)).map(&:to_sym)).query
+		query   = @collection.all(:fields => @fields || model.properties.map(&:field)).query
 
 		@resources = adapter.select(*adapter.send(:select_statement, query).flatten).map {|data|
 			if data.is_a?(Struct)
