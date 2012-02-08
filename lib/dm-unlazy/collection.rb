@@ -54,10 +54,11 @@ class Collection
 	end
 
 	def reload
-		adapter = repository.adapter
-		query   = @collection.all(:fields => @fields || model.properties.map(&:field)).query
+		adapter   = repository.adapter
+		query     = @collection.all(:fields => @fields || model.properties.map(&:field)).query
+		statement = adapter.send(:select_statement, query).flatten(1)
 
-		@resources = adapter.select(*adapter.send(:select_statement, query).flatten).map {|data|
+		@resources = adapter.select(*statement).map {|data|
 			if data.is_a?(Struct)
 				Unlazy::Model.new(model, data)
 			else
