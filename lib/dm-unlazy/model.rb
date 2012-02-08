@@ -20,7 +20,14 @@ class Model
 	end
 
 	def method_missing (id, *args, &block)
-		@model.__send__ id, *args, &block
+		result = @model.__send__ id, *args, &block
+
+		if [Associations::OneToMany::Collection, Associations::ManyToMany::Collection].any? { |k| k === result }
+			result.source.define_singleton_method(:saved?) { true }
+			result.reload
+		end
+
+		result
 	end
 end
 
